@@ -66,6 +66,8 @@ import java.util.Date
 import java.util.Locale
 
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Settings
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -79,7 +81,8 @@ fun LibraryScreen(
     onImportGallery: () -> Unit,
     onImportPdf: () -> Unit,
     onOpenTools: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onPromptUnlock: ((documentId: String) -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showImportMenu by remember { mutableStateOf(false) }
@@ -333,10 +336,19 @@ fun LibraryScreen(
                     items(uiState.documents, key = { it.id }) { document ->
                         DocumentItemCard(
                             document = document,
-                            onClick = { onOpenDocument(document.id) },
+                            onClick = {
+                                if (document.isLocked && onPromptUnlock != null) {
+                                    onPromptUnlock(document.id)
+                                } else {
+                                    onOpenDocument(document.id)
+                                }
+                            },
                             onRename = {
                                 documentToRename = document
                                 newDocTitle = document.title
+                            },
+                            onToggleLock = {
+                                viewModel.toggleLock(document.id, !document.isLocked)
                             },
                             onDelete = { viewModel.deleteDocument(document.id) }
                         )
@@ -399,6 +411,7 @@ private fun DocumentItemCard(
     document: Document,
     onClick: () -> Unit,
     onRename: () -> Unit,
+    onToggleLock: () -> Unit,
     onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -414,9 +427,9 @@ private fun DocumentItemCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Default.Description,
-                contentDescription = null,
-                tint = ScannerTheme.colors.primary,
+                imageVector = if (document.isLocked) Icons.Default.Lock else Icons.Default.Description,
+                contentDescription = if (document.isLocked) "Locked Document" else null,
+                tint = if (document.isLocked) ScannerTheme.colors.warningAccent else ScannerTheme.colors.primary,
                 modifier = Modifier.size(36.dp)
             )
 
@@ -424,7 +437,7 @@ private fun DocumentItemCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = document.title,
+                    text = if (document.isLocked) "${document.title} 🔒" else document.title,
                     style = ScannerTheme.typography.cardTitle,
                     color = ScannerTheme.colors.onSurface,
                     maxLines = 1,
@@ -446,11 +459,19 @@ private fun DocumentItemCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ScannerStatusBadge(
-                        text = stringResource(R.string.status_saved_locally),
-                        color = ScannerTheme.colors.success,
-                        icon = Icons.Default.CheckCircle
-                    )
+                    if (document.isLocked) {
+                        ScannerStatusBadge(
+                            text = "Locked (Biometric Protected)",
+                            color = ScannerTheme.colors.warningAccent,
+                            icon = Icons.Default.Lock
+                        )
+                    } else {
+                        ScannerStatusBadge(
+                            text = stringResource(R.string.status_saved_locally),
+                            color = ScannerTheme.colors.success,
+                            icon = Icons.Default.CheckCircle
+                        )
+                    }
 
                     when (document.backupState) {
                         BackupState.BACKED_UP -> {
@@ -505,6 +526,19 @@ private fun DocumentItemCard(
                             onRename()
                         },
                         leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(if (document.isLocked) "Unlock document" else "Lock with Biometrics") },
+                        onClick = {
+                            showMenu = false
+                            onToggleLock()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                if (document.isLocked) Icons.Default.LockOpen else Icons.Default.Lock,
+                                contentDescription = null
+                            )
+                        }
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.action_delete), color = ScannerTheme.colors.error) },

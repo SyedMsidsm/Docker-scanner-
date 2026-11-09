@@ -17,7 +17,8 @@ data class ReviewUiState(
     val documentTitle: String = "",
     val pages: List<Page> = emptyList(),
     val isLoading: Boolean = false,
-    val selectedPageId: String? = null
+    val selectedPageId: String? = null,
+    val isLocked: Boolean = false
 )
 
 class ReviewViewModel(
@@ -41,7 +42,8 @@ class ReviewViewModel(
                 if (doc != null) {
                     _uiState.value = _uiState.value.copy(
                         documentId = doc.id,
-                        documentTitle = doc.title
+                        documentTitle = doc.title,
+                        isLocked = doc.isLocked
                     )
                     repository.observePages(doc.id).collect { pageList ->
                         _uiState.value = _uiState.value.copy(

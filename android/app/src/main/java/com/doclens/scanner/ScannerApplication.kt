@@ -1,6 +1,7 @@
 package com.doclens.scanner
 
 import android.app.Application
+import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.doclens.scanner.core.database.ScannerDatabase
 import com.doclens.scanner.core.storage.AssetStore
 import com.doclens.scanner.data.repository.DocumentRepository
@@ -32,6 +33,7 @@ class ScannerApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        PDFBoxResourceLoader.init(this)
 
         database = ScannerDatabase.getInstance(this)
         assetStore = AssetStore(this)

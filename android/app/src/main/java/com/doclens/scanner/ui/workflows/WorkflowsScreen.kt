@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CallMerge
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Draw
 import androidx.compose.material.icons.filled.Receipt
@@ -40,6 +41,7 @@ import com.doclens.scanner.core.designsystem.ScannerTheme
 fun WorkflowsScreen(
     onBack: () -> Unit,
     onOpenIdCopy: () -> Unit,
+    onOpenMergeSplit: () -> Unit,
     onStartScan: () -> Unit,
     onOpenSearch: () -> Unit
 ) {
@@ -91,6 +93,14 @@ fun WorkflowsScreen(
                 description = "Combines both sides of an ID or license onto a single printable page with an optional security purpose watermark.",
                 icon = Icons.Default.CreditCard,
                 onClick = onOpenIdCopy
+            )
+
+            // Merge & Split Documents (PDF-03)
+            WorkflowActionCard(
+                title = "Merge & Split Scans",
+                description = "Combine multiple scan documents into a unified multi-page document or split an existing document into multiple parts.",
+                icon = Icons.Default.CallMerge,
+                onClick = onOpenMergeSplit
             )
 
             // Sign & Return Workflow Card

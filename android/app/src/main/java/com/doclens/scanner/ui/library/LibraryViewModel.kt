@@ -121,6 +121,12 @@ class LibraryViewModel(
         }
     }
 
+    fun toggleLock(documentId: String, isLocked: Boolean) {
+        viewModelScope.launch {
+            repository.setDocumentLocked(documentId, isLocked)
+        }
+    }
+
     class Factory(private val repository: DocumentRepository) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {

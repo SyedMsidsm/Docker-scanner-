@@ -1,9 +1,10 @@
 package com.doclens.scanner
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.fragment.app.FragmentActivity
+import com.doclens.scanner.core.security.BiometricLockManager
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -31,6 +32,7 @@ import com.doclens.scanner.ui.gallery.ComponentGalleryScreen
 import com.doclens.scanner.ui.library.LibraryScreen
 import com.doclens.scanner.ui.library.LibraryViewModel
 import com.doclens.scanner.ui.workflows.IdCopyWorkflowScreen
+import com.doclens.scanner.ui.workflows.MergeSplitWorkflowScreen
 import com.doclens.scanner.ui.workflows.WorkflowsScreen
 import com.doclens.scanner.ui.ocr.OcrReviewScreen
 import com.doclens.scanner.ui.ocr.OcrReviewViewModel
@@ -39,7 +41,7 @@ import com.doclens.scanner.ui.review.ReviewViewModel
 import com.doclens.scanner.ui.settings.SettingsScreen
 import com.doclens.scanner.ui.settings.SettingsViewModel
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,6 +61,7 @@ class MainActivity : ComponentActivity() {
                     color = ScannerTheme.colors.background
                 ) {
                     ScannerNavHost(
+                        activity = this@MainActivity,
                         app = app,
                         settingsViewModel = settingsViewModel
                     )
@@ -70,6 +73,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun ScannerNavHost(
+    activity: FragmentActivity,
     app: ScannerApplication,
     settingsViewModel: SettingsViewModel
 ) {
@@ -110,6 +114,15 @@ fun ScannerNavHost(
                 },
                 onOpenSettings = {
                     navController.navigate("settings")
+                },
+                onPromptUnlock = { documentId ->
+                    BiometricLockManager.promptUnlock(
+                        activity = activity,
+                        title = "Unlock Scan",
+                        onSuccess = {
+                            navController.navigate("review?documentId=$documentId")
+                        }
+                    )
                 }
             )
         }
@@ -284,8 +297,25 @@ fun ScannerNavHost(
             WorkflowsScreen(
                 onBack = { navController.popBackStack() },
                 onOpenIdCopy = { navController.navigate("idcopy") },
+                onOpenMergeSplit = { navController.navigate("merge_split") },
                 onStartScan = { navController.navigate("capture") },
                 onOpenSearch = { navController.navigate("library") }
+            )
+        }
+
+        // Merge & Split Workflow Screen
+        composable("merge_split") {
+            MergeSplitWorkflowScreen(
+                repository = app.repository,
+                onBack = { navController.popBackStack() },
+                onMerged = { newDocId ->
+                    navController.navigate("review?documentId=$newDocId") {
+                        popUpTo("library")
+                    }
+                },
+                onSplitComplete = {
+                    navController.popBackStack()
+                }
             )
         }
 

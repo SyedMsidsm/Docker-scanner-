@@ -74,9 +74,13 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.biometric)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.documentfile)
     implementation(libs.androidx.work.runtime.ktx)
+
+    // PDFBox Android for structural merge, split, and encryption
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
 
     // Compose
     implementation(platform(libs.compose.bom))

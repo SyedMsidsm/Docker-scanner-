@@ -31,6 +31,15 @@ interface DocumentDao {
     @Query("UPDATE documents SET deletedAt = :deletedAt WHERE id = :id")
     suspend fun softDelete(id: String, deletedAt: Long = System.currentTimeMillis())
 
+    @Query("UPDATE documents SET deletedAt = NULL WHERE id = :id")
+    suspend fun restoreFromTrash(id: String)
+
+    @Query("SELECT * FROM documents WHERE deletedAt IS NOT NULL ORDER BY deletedAt DESC")
+    fun observeTrash(): Flow<List<DocumentEntity>>
+
+    @Query("UPDATE documents SET isLocked = :isLocked, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateDocumentLock(id: String, isLocked: Boolean, updatedAt: Long = System.currentTimeMillis())
+
     @Query("DELETE FROM documents WHERE id = :id")
     suspend fun permanentDelete(id: String)
 }

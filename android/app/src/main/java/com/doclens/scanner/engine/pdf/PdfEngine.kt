@@ -15,6 +15,11 @@ import com.doclens.scanner.core.model.SignatureConfig
 import com.doclens.scanner.core.model.WatermarkConfig
 import com.doclens.scanner.core.storage.AssetStore
 import com.doclens.scanner.engine.image.ImageEngine
+import com.tom_roush.pdfbox.multipdf.PDFMergerUtility
+import com.tom_roush.pdfbox.multipdf.Splitter
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.pdmodel.encryption.AccessPermission
+import com.tom_roush.pdfbox.pdmodel.encryption.StandardProtectionPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -57,6 +62,24 @@ interface PdfEngine {
         config: IdCardLayoutConfig,
         outputFile: File,
         quality: Int = 90
+    ): File
+
+    suspend fun mergePdfs(
+        sourcePdfFiles: List<File>,
+        outputFile: File
+    ): File
+
+    suspend fun splitPdf(
+        sourcePdfFile: File,
+        outputDirectory: File,
+        baseName: String
+    ): List<File>
+
+    suspend fun protectPdf(
+        sourcePdfFile: File,
+        outputFile: File,
+        userPassword: String,
+        ownerPassword: String = userPassword
     ): File
 }
 
@@ -369,5 +392,61 @@ class AndroidPdfEngine(
                 bitmapWidth to bitmapHeight
             }
         }
+    }
+
+    override suspend fun mergePdfs(
+        sourcePdfFiles: List<File>,
+        outputFile: File
+    ): File = withContext(Dispatchers.IO) {
+        val merger = PDFMergerUtility()
+        for (file in sourcePdfFiles) {
+            merger.addSource(file)
+        }
+        merger.destinationFileName = outputFile.absolutePath
+        merger.mergeDocuments(null)
+        outputFile
+    }
+
+    override suspend fun splitPdf(
+        sourcePdfFile: File,
+        outputDirectory: File,
+        baseName: String
+    ): List<File> = withContext(Dispatchers.IO) {
+        val doc = PDDocument.load(sourcePdfFile)
+        val splitter = Splitter()
+        val splitDocs = splitter.split(doc)
+        val resultFiles = mutableListOf<File>()
+        try {
+            splitDocs.forEachIndexed { index, splitDoc ->
+                val outFile = File(outputDirectory, "${baseName}_page_${index + 1}.pdf")
+                splitDoc.save(outFile)
+                splitDoc.close()
+                resultFiles.add(outFile)
+            }
+        } finally {
+            doc.close()
+        }
+        resultFiles
+    }
+
+    override suspend fun protectPdf(
+        sourcePdfFile: File,
+        outputFile: File,
+        userPassword: String,
+        ownerPassword: String
+    ): File = withContext(Dispatchers.IO) {
+        val doc = PDDocument.load(sourcePdfFile)
+        try {
+            val ap = AccessPermission()
+            val policy = StandardProtectionPolicy(ownerPassword, userPassword, ap).apply {
+                encryptionKeyLength = 128
+                permissions = ap
+            }
+            doc.protect(policy)
+            doc.save(outputFile)
+        } finally {
+            doc.close()
+        }
+        outputFile
     }
 }

@@ -82,6 +82,18 @@ interface DocumentRepository {
     // Version History (IMP-01)
     suspend fun createVersionSnapshot(documentId: String, reason: String)
     suspend fun getVersionHistory(documentId: String): List<DocumentVersionEntity>
+
+    // Document Locking & Security (Phase 9, SEC-01)
+    suspend fun setDocumentLocked(documentId: String, isLocked: Boolean)
+
+    // Trash & Recovery (DOC-04)
+    fun observeTrash(): Flow<List<Document>>
+    suspend fun restoreDocument(documentId: String)
+    suspend fun permanentlyDeleteDocument(documentId: String)
+
+    // Merge & Split (Phase 8, PDF-03)
+    suspend fun mergeDocuments(documentIds: List<String>, newTitle: String): String
+    suspend fun splitDocument(documentId: String, splitAfterPageIndex: Int, firstTitle: String, secondTitle: String): Pair<String, String>
 }
 
 class DocumentRepositoryImpl(
@@ -567,6 +579,148 @@ class DocumentRepositoryImpl(
         } else null
     }
 
+    override suspend fun setDocumentLocked(documentId: String, isLocked: Boolean) = withContext(Dispatchers.IO) {
+        documentDao.updateDocumentLock(documentId, isLocked)
+    }
+
+    override fun observeTrash(): Flow<List<Document>> {
+        return documentDao.observeTrash().map { list -> list.map { it.toDomain() } }
+    }
+
+    override suspend fun restoreDocument(documentId: String) = withContext(Dispatchers.IO) {
+        documentDao.restoreFromTrash(documentId)
+    }
+
+    override suspend fun permanentlyDeleteDocument(documentId: String) = withContext(Dispatchers.IO) {
+        documentDao.permanentDelete(documentId)
+    }
+
+    override suspend fun mergeDocuments(documentIds: List<String>, newTitle: String): String = withContext(Dispatchers.IO) {
+        require(documentIds.isNotEmpty()) { "Cannot merge empty document list" }
+        val newDocId = UUID.randomUUID().toString()
+        val now = System.currentTimeMillis()
+        var totalPages = 0
+        val pagesToInsert = mutableListOf<PageEntity>()
+
+        for (sourceDocId in documentIds) {
+            val sourcePages = pageDao.getPagesForDocument(sourceDocId).sortedBy { it.position }
+            for (p in sourcePages) {
+                val newPageId = UUID.randomUUID().toString()
+                pagesToInsert.add(
+                    PageEntity(
+                        id = newPageId,
+                        documentId = newDocId,
+                        position = totalPages++,
+                        sourceAssetId = p.sourceAssetId,
+                        recipeJson = p.recipeJson,
+                        revision = 1,
+                        createdAt = now
+                    )
+                )
+            }
+        }
+
+        val newDoc = DocumentEntity(
+            id = newDocId,
+            title = newTitle,
+            folderId = null,
+            createdAt = now,
+            updatedAt = now,
+            revision = 1,
+            deletedAt = null,
+            pageCount = totalPages,
+            localSaveState = LocalSaveState.SAVED_LOCALLY,
+            backupState = BackupState.NOT_BACKED_UP,
+            lastBackupAt = null,
+            isLocked = false
+        )
+
+        documentDao.insert(newDoc)
+        pageDao.insertAll(pagesToInsert)
+        createVersionSnapshot(newDocId, "Created from merge of ${documentIds.size} documents")
+        newDocId
+    }
+
+    override suspend fun splitDocument(
+        documentId: String,
+        splitAfterPageIndex: Int,
+        firstTitle: String,
+        secondTitle: String
+    ): Pair<String, String> = withContext(Dispatchers.IO) {
+        val existingPages = pageDao.getPagesForDocument(documentId).sortedBy { it.position }
+        require(splitAfterPageIndex in 0 until existingPages.size - 1) {
+            "Invalid split index: $splitAfterPageIndex for ${existingPages.size} pages"
+        }
+
+        val now = System.currentTimeMillis()
+        val doc1Id = UUID.randomUUID().toString()
+        val doc2Id = UUID.randomUUID().toString()
+
+        val doc1Pages = existingPages.take(splitAfterPageIndex + 1).mapIndexed { idx, p ->
+            PageEntity(
+                id = UUID.randomUUID().toString(),
+                documentId = doc1Id,
+                position = idx,
+                sourceAssetId = p.sourceAssetId,
+                recipeJson = p.recipeJson,
+                revision = 1,
+                createdAt = now
+            )
+        }
+
+        val doc2Pages = existingPages.drop(splitAfterPageIndex + 1).mapIndexed { idx, p ->
+            PageEntity(
+                id = UUID.randomUUID().toString(),
+                documentId = doc2Id,
+                position = idx,
+                sourceAssetId = p.sourceAssetId,
+                recipeJson = p.recipeJson,
+                revision = 1,
+                createdAt = now
+            )
+        }
+
+        val doc1 = DocumentEntity(
+            id = doc1Id,
+            title = firstTitle,
+            folderId = null,
+            createdAt = now,
+            updatedAt = now,
+            revision = 1,
+            deletedAt = null,
+            pageCount = doc1Pages.size,
+            localSaveState = LocalSaveState.SAVED_LOCALLY,
+            backupState = BackupState.NOT_BACKED_UP,
+            lastBackupAt = null,
+            isLocked = false
+        )
+
+        val doc2 = DocumentEntity(
+            id = doc2Id,
+            title = secondTitle,
+            folderId = null,
+            createdAt = now,
+            updatedAt = now,
+            revision = 1,
+            deletedAt = null,
+            pageCount = doc2Pages.size,
+            localSaveState = LocalSaveState.SAVED_LOCALLY,
+            backupState = BackupState.NOT_BACKED_UP,
+            lastBackupAt = null,
+            isLocked = false
+        )
+
+        documentDao.insert(doc1)
+        pageDao.insertAll(doc1Pages)
+        createVersionSnapshot(doc1Id, "Created from split of document $documentId (Part 1)")
+
+        documentDao.insert(doc2)
+        pageDao.insertAll(doc2Pages)
+        createVersionSnapshot(doc2Id, "Created from split of document $documentId (Part 2)")
+
+        Pair(doc1Id, doc2Id)
+    }
+
     private fun OcrResultEntity.toDomain() = PageOcrResult(
         pageId = pageId,
         sourceRevision = sourceRevision,
@@ -589,7 +743,8 @@ private fun DocumentEntity.toDomain() = Document(
     pageCount = pageCount,
     localSaveState = localSaveState,
     backupState = backupState,
-    lastBackupAt = lastBackupAt
+    lastBackupAt = lastBackupAt,
+    isLocked = isLocked
 )
 
 private fun Document.toEntity() = DocumentEntity(
@@ -603,7 +758,8 @@ private fun Document.toEntity() = DocumentEntity(
     pageCount = pageCount,
     localSaveState = localSaveState,
     backupState = backupState,
-    lastBackupAt = lastBackupAt
+    lastBackupAt = lastBackupAt,
+    isLocked = isLocked
 )
 
 private fun PageEntity.toDomain(converters: Converters) = Page(

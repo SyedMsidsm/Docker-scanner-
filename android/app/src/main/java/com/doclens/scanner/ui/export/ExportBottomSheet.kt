@@ -219,6 +219,44 @@ fun ExportBottomSheet(
                     )
                 }
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Password Protection (PDF-09)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Password Protect PDF",
+                        style = ScannerTheme.typography.buttonLabel,
+                        color = ScannerTheme.colors.onSurfaceVariant
+                    )
+                    Switch(
+                        checked = uiState.isPasswordProtected,
+                        onCheckedChange = { viewModel.togglePasswordProtection(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = ScannerTheme.colors.primary,
+                            checkedTrackColor = ScannerTheme.colors.primary.copy(alpha = 0.5f)
+                        )
+                    )
+                }
+
+                if (uiState.isPasswordProtected) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = uiState.password,
+                        onValueChange = { viewModel.setPassword(it) },
+                        placeholder = { Text("Enter protection password") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ScannerTheme.colors.primary,
+                            unfocusedBorderColor = ScannerTheme.colors.borderSubtle
+                        )
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(20.dp))
             }
 

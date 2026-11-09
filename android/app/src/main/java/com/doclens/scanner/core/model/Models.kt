@@ -27,7 +27,8 @@ data class Document(
     val pageCount: Int = 0,
     val localSaveState: LocalSaveState = LocalSaveState.SAVED_LOCALLY,
     val backupState: BackupState = BackupState.NOT_BACKED_UP,
-    val lastBackupAt: Long? = null
+    val lastBackupAt: Long? = null,
+    val isLocked: Boolean = false
 )
 
 data class NormalizedPoint(

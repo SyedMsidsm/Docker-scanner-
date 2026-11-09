@@ -23,7 +23,8 @@ data class DocumentEntity(
     val pageCount: Int,
     val localSaveState: LocalSaveState,
     val backupState: BackupState,
-    val lastBackupAt: Long?
+    val lastBackupAt: Long?,
+    val isLocked: Boolean = false
 )
 
 @Entity(

@@ -34,6 +34,8 @@ data class ExportUiState(
     val watermarkText: String = "",
     val isWatermarkEnabled: Boolean = false,
     val signatureFile: File? = null,
+    val password: String = "",
+    val isPasswordProtected: Boolean = false,
     val isExporting: Boolean = false,
     val progressCurrent: Int = 0,
     val progressTotal: Int = 0,
@@ -80,6 +82,14 @@ class ExportViewModel(
 
     fun setSignatureFile(file: File?) {
         _uiState.value = _uiState.value.copy(signatureFile = file, exportedFile = null)
+    }
+
+    fun setPassword(password: String) {
+        _uiState.value = _uiState.value.copy(password = password, exportedFile = null)
+    }
+
+    fun togglePasswordProtection(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(isPasswordProtected = enabled, exportedFile = null)
     }
 
     fun getSignatureTempFile(): File {
@@ -129,10 +139,19 @@ class ExportViewModel(
                             _uiState.value = _uiState.value.copy(progressCurrent = cur, progressTotal = tot)
                         }
                     )
+
+                    val finalFile = if (_uiState.value.isPasswordProtected && _uiState.value.password.isNotBlank()) {
+                        val protectedFile = assetStore.createTemporaryExportFile("${sanitizedTitle}_protected.pdf")
+                        pdfEngine.protectPdf(outFile, protectedFile, _uiState.value.password)
+                        protectedFile
+                    } else {
+                        result
+                    }
+
                     _uiState.value = _uiState.value.copy(
                         isExporting = false,
-                        exportedFile = result,
-                        measuredBytes = result.length()
+                        exportedFile = finalFile,
+                        measuredBytes = finalFile.length()
                     )
                 } else {
                     val outDir = assetStore.createTemporaryExportFile(sanitizedTitle)
