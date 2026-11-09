@@ -67,12 +67,15 @@ import com.doclens.scanner.core.designsystem.ScannerStatusBadge
 import com.doclens.scanner.core.designsystem.ScannerTheme
 import com.doclens.scanner.core.model.Page
 
+import androidx.compose.material.icons.filled.TextFields
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReviewScreen(
     viewModel: ReviewViewModel,
     onBack: () -> Unit,
     onEditPage: (page: Page) -> Unit,
+    onOcrPage: (page: Page) -> Unit,
     onAddMorePages: (documentId: String) -> Unit,
     onExportRequested: (documentId: String) -> Unit
 ) {
@@ -199,6 +202,7 @@ fun ReviewScreen(
                             totalCount = uiState.pages.size,
                             assetFile = viewModel.getFileForAsset(page.sourceAssetId),
                             onEdit = { onEditPage(page) },
+                            onOcr = { onOcrPage(page) },
                             onMoveUp = { viewModel.movePageUp(index) },
                             onMoveDown = { viewModel.movePageDown(index) },
                             onDuplicate = { viewModel.duplicatePage(page.id) },
@@ -253,6 +257,7 @@ private fun PageGridCard(
     totalCount: Int,
     assetFile: java.io.File,
     onEdit: () -> Unit,
+    onOcr: () -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     onDuplicate: () -> Unit,
@@ -332,7 +337,7 @@ private fun PageGridCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Action Buttons Row (Edit, Duplicate, Delete)
+            // Action Buttons Row (Edit, OCR, Duplicate, Delete)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -342,6 +347,15 @@ private fun PageGridCard(
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = "Edit page",
+                        tint = ScannerTheme.colors.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                IconButton(onClick = onOcr, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.TextFields,
+                        contentDescription = "OCR text",
                         tint = ScannerTheme.colors.primary,
                         modifier = Modifier.size(18.dp)
                     )

@@ -7,6 +7,8 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.doclens.scanner.core.model.SignatureConfig
+import com.doclens.scanner.core.model.WatermarkConfig
 import com.doclens.scanner.core.storage.AssetStore
 import com.doclens.scanner.data.repository.DocumentRepository
 import com.doclens.scanner.engine.pdf.PaperSize
@@ -29,6 +31,9 @@ data class ExportUiState(
     val documentTitle: String = "",
     val format: ExportFormat = ExportFormat.PDF,
     val paperSize: PaperSize = PaperSize.A4,
+    val watermarkText: String = "",
+    val isWatermarkEnabled: Boolean = false,
+    val signatureFile: File? = null,
     val isExporting: Boolean = false,
     val progressCurrent: Int = 0,
     val progressTotal: Int = 0,
@@ -65,6 +70,22 @@ class ExportViewModel(
         _uiState.value = _uiState.value.copy(paperSize = size, exportedFile = null)
     }
 
+    fun setWatermarkText(text: String) {
+        _uiState.value = _uiState.value.copy(watermarkText = text, exportedFile = null)
+    }
+
+    fun toggleWatermark(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(isWatermarkEnabled = enabled, exportedFile = null)
+    }
+
+    fun setSignatureFile(file: File?) {
+        _uiState.value = _uiState.value.copy(signatureFile = file, exportedFile = null)
+    }
+
+    fun getSignatureTempFile(): File {
+        return assetStore.createTemporaryExportFile("sig_${System.currentTimeMillis()}.png")
+    }
+
     fun prepareExport() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isExporting = true, errorMessage = null)
@@ -81,9 +102,20 @@ class ExportViewModel(
                 .replace(Regex("[^a-zA-Z0-9._-]"), "_")
                 .ifBlank { "scan" }
 
+            // Load OCR results for Searchable PDF (OCR-03)
+            val ocrMap = repository.getOcrForDocument(documentId)
+
             val config = PdfExportConfig(
                 title = _uiState.value.documentTitle,
-                paperSize = _uiState.value.paperSize
+                paperSize = _uiState.value.paperSize,
+                watermark = WatermarkConfig(
+                    text = _uiState.value.watermarkText,
+                    isEnabled = _uiState.value.isWatermarkEnabled
+                ),
+                signatures = if (_uiState.value.signatureFile != null) {
+                    listOf(SignatureConfig(signatureFile = _uiState.value.signatureFile!!))
+                } else emptyList(),
+                ocrResults = ocrMap
             )
 
             try {

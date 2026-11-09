@@ -40,6 +40,8 @@ class WorkflowEndToEndTest {
             pageDao = database.pageDao(),
             assetDao = database.assetDao(),
             sessionDao = database.captureSessionDao(),
+            ocrDao = database.ocrDao(),
+            versionDao = database.documentVersionDao(),
             assetStore = assetStore
         )
 
@@ -109,6 +111,8 @@ class WorkflowEndToEndTest {
             pageDao = database.pageDao(),
             assetDao = database.assetDao(),
             sessionDao = database.captureSessionDao(),
+            ocrDao = database.ocrDao(),
+            versionDao = database.documentVersionDao(),
             assetStore = assetStore
         )
         val recoveredDoc = freshRepository.getDocument(document.id)

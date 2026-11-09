@@ -30,6 +30,10 @@ import com.doclens.scanner.ui.export.ExportViewModel
 import com.doclens.scanner.ui.gallery.ComponentGalleryScreen
 import com.doclens.scanner.ui.library.LibraryScreen
 import com.doclens.scanner.ui.library.LibraryViewModel
+import com.doclens.scanner.ui.workflows.IdCopyWorkflowScreen
+import com.doclens.scanner.ui.workflows.WorkflowsScreen
+import com.doclens.scanner.ui.ocr.OcrReviewScreen
+import com.doclens.scanner.ui.ocr.OcrReviewViewModel
 import com.doclens.scanner.ui.review.ReviewScreen
 import com.doclens.scanner.ui.review.ReviewViewModel
 import com.doclens.scanner.ui.settings.SettingsScreen
@@ -100,6 +104,12 @@ fun ScannerNavHost(
                 },
                 onImportPdf = {
                     navController.navigate("capture")
+                },
+                onOpenTools = {
+                    navController.navigate("workflows")
+                },
+                onOpenSettings = {
+                    navController.navigate("settings")
                 }
             )
         }
@@ -171,6 +181,9 @@ fun ScannerNavHost(
                 onEditPage = { page ->
                     navController.navigate("editor/${page.id}/${page.documentId}")
                 },
+                onOcrPage = { page ->
+                    navController.navigate("ocr/${page.id}/${page.documentId}")
+                },
                 onAddMorePages = { currentDocId ->
                     navController.navigate("capture")
                 },
@@ -236,6 +249,56 @@ fun ScannerNavHost(
                 imageEngine = app.imageEngine,
                 onBack = { navController.popBackStack() },
                 onSaved = { navController.popBackStack() }
+            )
+        }
+
+        // OCR Review & Text Extraction Screen
+        composable(
+            route = "ocr/{pageId}/{documentId}",
+            arguments = listOf(
+                navArgument("pageId") { type = NavType.StringType },
+                navArgument("documentId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val pageId = backStackEntry.arguments?.getString("pageId") ?: ""
+            val documentId = backStackEntry.arguments?.getString("documentId") ?: ""
+
+            val ocrViewModel: OcrReviewViewModel = viewModel(
+                factory = OcrReviewViewModel.Factory(
+                    repository = app.repository,
+                    ocrEngine = app.ocrEngine,
+                    assetStore = app.assetStore,
+                    pageId = pageId,
+                    documentId = documentId
+                )
+            )
+
+            OcrReviewScreen(
+                viewModel = ocrViewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // Workflows Screen (Tools)
+        composable("workflows") {
+            WorkflowsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenIdCopy = { navController.navigate("idcopy") },
+                onStartScan = { navController.navigate("capture") },
+                onOpenSearch = { navController.navigate("library") }
+            )
+        }
+
+        // ID Copy Workflow Screen
+        composable("idcopy") {
+            IdCopyWorkflowScreen(
+                repository = app.repository,
+                assetStore = app.assetStore,
+                pdfEngine = app.pdfEngine,
+                onBack = { navController.popBackStack() },
+                onCompleted = { exportedPdf ->
+                    navController.popBackStack()
+                }
             )
         }
 

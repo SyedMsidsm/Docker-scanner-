@@ -7,6 +7,8 @@ import com.doclens.scanner.data.repository.DocumentRepository
 import com.doclens.scanner.data.repository.DocumentRepositoryImpl
 import com.doclens.scanner.engine.image.AndroidImageEngine
 import com.doclens.scanner.engine.image.ImageEngine
+import com.doclens.scanner.engine.ocr.MlKitOcrEngine
+import com.doclens.scanner.engine.ocr.OcrEngine
 import com.doclens.scanner.engine.pdf.AndroidPdfEngine
 import com.doclens.scanner.engine.pdf.PdfEngine
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +25,8 @@ class ScannerApplication : Application() {
         private set
     lateinit var pdfEngine: PdfEngine
         private set
+    lateinit var ocrEngine: OcrEngine
+        private set
     lateinit var repository: DocumentRepository
         private set
 
@@ -33,12 +37,15 @@ class ScannerApplication : Application() {
         assetStore = AssetStore(this)
         imageEngine = AndroidImageEngine()
         pdfEngine = AndroidPdfEngine(assetStore, imageEngine)
+        ocrEngine = MlKitOcrEngine(this)
 
         repository = DocumentRepositoryImpl(
             documentDao = database.documentDao(),
             pageDao = database.pageDao(),
             assetDao = database.assetDao(),
             sessionDao = database.captureSessionDao(),
+            ocrDao = database.ocrDao(),
+            versionDao = database.documentVersionDao(),
             assetStore = assetStore
         )
 

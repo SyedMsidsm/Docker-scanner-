@@ -65,6 +65,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Settings
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
@@ -74,7 +77,9 @@ fun LibraryScreen(
     onReviewSession: (sessionId: String) -> Unit,
     onOpenDocument: (documentId: String) -> Unit,
     onImportGallery: () -> Unit,
-    onImportPdf: () -> Unit
+    onImportPdf: () -> Unit,
+    onOpenTools: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showImportMenu by remember { mutableStateOf(false) }
@@ -99,11 +104,20 @@ fun LibraryScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        style = ScannerTheme.typography.screenTitle,
-                        color = ScannerTheme.colors.onSurface
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = stringResource(R.string.app_name),
+                            style = ScannerTheme.typography.screenTitle,
+                            color = ScannerTheme.colors.onSurface
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(onClick = onOpenTools) {
+                            Icon(Icons.Default.Build, contentDescription = "Tools", tint = ScannerTheme.colors.primary)
+                        }
+                        IconButton(onClick = onOpenSettings) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = ScannerTheme.colors.onSurfaceVariant)
+                        }
+                    }
                     Text(
                         text = "${uiState.documents.size} documents",
                         style = ScannerTheme.typography.compactBody,

@@ -109,3 +109,41 @@ interface CaptureSessionDao {
     @Query("DELETE FROM capture_sessions WHERE id = :sessionId")
     suspend fun deleteSession(sessionId: String)
 }
+
+@Dao
+interface OcrDao {
+
+    @Query("SELECT * FROM ocr_results WHERE pageId = :pageId")
+    suspend fun getByPageId(pageId: String): OcrResultEntity?
+
+    @Query("SELECT * FROM ocr_results WHERE pageId = :pageId")
+    fun observeByPageId(pageId: String): Flow<OcrResultEntity?>
+
+    @Query("SELECT * FROM ocr_results WHERE documentId = :documentId")
+    suspend fun getForDocument(documentId: String): List<OcrResultEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(ocrResult: OcrResultEntity)
+
+    @Query("""
+        SELECT * FROM ocr_results 
+        WHERE (rawText LIKE '%' || :query || '%' OR userReviewedText LIKE '%' || :query || '%')
+    """)
+    fun search(query: String): Flow<List<OcrResultEntity>>
+
+    @Query("DELETE FROM ocr_results WHERE pageId = :pageId")
+    suspend fun deleteByPageId(pageId: String)
+}
+
+@Dao
+interface DocumentVersionDao {
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(version: DocumentVersionEntity)
+
+    @Query("SELECT * FROM document_versions WHERE documentId = :documentId ORDER BY revision DESC")
+    suspend fun getVersionsForDocument(documentId: String): List<DocumentVersionEntity>
+
+    @Query("SELECT * FROM document_versions WHERE documentId = :documentId AND revision = :revision")
+    suspend fun getVersion(documentId: String, revision: Int): DocumentVersionEntity?
+}

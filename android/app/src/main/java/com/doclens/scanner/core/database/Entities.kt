@@ -105,3 +105,47 @@ data class SessionPageEntity(
     val assetId: String,
     val recipeJson: String
 )
+
+@Entity(
+    tableName = "ocr_results",
+    foreignKeys = [
+        ForeignKey(
+            entity = PageEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["pageId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index(value = ["pageId"]), Index(value = ["documentId"])]
+)
+data class OcrResultEntity(
+    @PrimaryKey val pageId: String,
+    val documentId: String,
+    val sourceRevision: Int,
+    val rawText: String,
+    val userReviewedText: String?,
+    val blocksJson: String,
+    val language: String,
+    val updatedAt: Long
+)
+
+@Entity(
+    tableName = "document_versions",
+    foreignKeys = [
+        ForeignKey(
+            entity = DocumentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["documentId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index(value = ["documentId"]), Index(value = ["revision"])]
+)
+data class DocumentVersionEntity(
+    @PrimaryKey val id: String,
+    val documentId: String,
+    val revision: Int,
+    val pageSnapshotJson: String,
+    val reason: String,
+    val createdAt: Long
+)

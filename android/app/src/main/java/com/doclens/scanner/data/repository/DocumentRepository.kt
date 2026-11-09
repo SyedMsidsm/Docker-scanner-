@@ -4,23 +4,32 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
+import com.doclens.scanner.core.database.AssetDao
 import com.doclens.scanner.core.database.AssetEntity
+import com.doclens.scanner.core.database.CaptureSessionDao
 import com.doclens.scanner.core.database.CaptureSessionEntity
+import com.doclens.scanner.core.database.Converters
 import com.doclens.scanner.core.database.DocumentDao
 import com.doclens.scanner.core.database.DocumentEntity
+import com.doclens.scanner.core.database.DocumentVersionDao
+import com.doclens.scanner.core.database.DocumentVersionEntity
+import com.doclens.scanner.core.database.OcrDao
+import com.doclens.scanner.core.database.OcrResultEntity
 import com.doclens.scanner.core.database.PageDao
 import com.doclens.scanner.core.database.PageEntity
-import com.doclens.scanner.core.database.AssetDao
-import com.doclens.scanner.core.database.CaptureSessionDao
 import com.doclens.scanner.core.database.SessionPageEntity
-import com.doclens.scanner.core.database.Converters
 import com.doclens.scanner.core.model.Asset
 import com.doclens.scanner.core.model.BackupState
 import com.doclens.scanner.core.model.CaptureSession
 import com.doclens.scanner.core.model.Document
 import com.doclens.scanner.core.model.EditRecipe
 import com.doclens.scanner.core.model.LocalSaveState
+import com.doclens.scanner.core.model.NormalizedRect
+import com.doclens.scanner.core.model.OcrBlock
+import com.doclens.scanner.core.model.OcrLine
+import com.doclens.scanner.core.model.OcrWord
 import com.doclens.scanner.core.model.Page
+import com.doclens.scanner.core.model.PageOcrResult
 import com.doclens.scanner.core.model.SessionPage
 import com.doclens.scanner.core.model.SessionState
 import com.doclens.scanner.core.storage.AssetStore
@@ -28,6 +37,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -59,6 +70,18 @@ interface DocumentRepository {
 
     suspend fun importImageStream(inputStream: InputStream): Asset
     suspend fun importPdfStream(context: Context, inputStream: InputStream, sessionId: String): Int
+
+    // OCR & Text Search (Phase 7)
+    suspend fun getOcrResult(pageId: String): PageOcrResult?
+    fun observeOcrResult(pageId: String): Flow<PageOcrResult?>
+    suspend fun saveOcrResult(documentId: String, result: PageOcrResult)
+    suspend fun updateUserReviewedText(pageId: String, reviewedText: String)
+    suspend fun getOcrForDocument(documentId: String): Map<String, PageOcrResult>
+    fun searchDocumentsByOcr(query: String): Flow<List<OcrResultEntity>>
+
+    // Version History (IMP-01)
+    suspend fun createVersionSnapshot(documentId: String, reason: String)
+    suspend fun getVersionHistory(documentId: String): List<DocumentVersionEntity>
 }
 
 class DocumentRepositoryImpl(
@@ -66,6 +89,8 @@ class DocumentRepositoryImpl(
     private val pageDao: PageDao,
     private val assetDao: AssetDao,
     private val sessionDao: CaptureSessionDao,
+    private val ocrDao: OcrDao,
+    private val versionDao: DocumentVersionDao,
     private val assetStore: AssetStore
 ) : DocumentRepository {
 
@@ -120,7 +145,6 @@ class DocumentRepositoryImpl(
     }
 
     override suspend fun startNewSession(title: String?): CaptureSession = withContext(Dispatchers.IO) {
-        // Mark any existing active session as discarded or return it
         val session = CaptureSession(
             id = UUID.randomUUID().toString(),
             state = SessionState.ACTIVE,
@@ -135,7 +159,6 @@ class DocumentRepositoryImpl(
         asset: Asset,
         recipe: EditRecipe
     ): Int = withContext(Dispatchers.IO) {
-        // Record asset in DB
         assetDao.insert(asset.toEntity())
 
         val currentPages = sessionDao.getSessionPages(sessionId)
@@ -159,7 +182,6 @@ class DocumentRepositoryImpl(
 
     override suspend fun removeSessionPage(sessionId: String, position: Int) = withContext(Dispatchers.IO) {
         sessionDao.deleteSessionPage(sessionId, position)
-        // Renumber remaining pages
         val remaining = sessionDao.getSessionPages(sessionId).sortedBy { it.position }
         sessionDao.clearSessionPages(sessionId)
         remaining.forEachIndexed { idx, page ->
@@ -204,8 +226,10 @@ class DocumentRepositoryImpl(
         }
         pageDao.insertAll(pageEntities)
 
-        // Close session
         sessionDao.deleteSession(sessionId)
+
+        // Snapshot initial version (IMP-01)
+        createVersionSnapshot(docId, "Initial scan commit")
 
         document
     }
@@ -226,7 +250,9 @@ class DocumentRepositoryImpl(
 
         val doc = documentDao.getById(documentId)
         if (doc != null) {
-            documentDao.update(doc.copy(revision = doc.revision + 1, updatedAt = System.currentTimeMillis()))
+            val newRev = doc.revision + 1
+            documentDao.update(doc.copy(revision = newRev, updatedAt = System.currentTimeMillis()))
+            createVersionSnapshot(documentId, "Reorder pages")
         }
     }
 
@@ -244,7 +270,9 @@ class DocumentRepositoryImpl(
 
         val doc = documentDao.getById(page.documentId)
         if (doc != null) {
-            documentDao.update(doc.copy(revision = doc.revision + 1, updatedAt = System.currentTimeMillis()))
+            val newRev = doc.revision + 1
+            documentDao.update(doc.copy(revision = newRev, updatedAt = System.currentTimeMillis()))
+            createVersionSnapshot(page.documentId, "Page edit")
         }
     }
 
@@ -255,7 +283,6 @@ class DocumentRepositoryImpl(
         val newPageId = UUID.randomUUID().toString()
         val newPosition = page.position + 1
 
-        // Shift subsequent pages
         existingPages.filter { it.position >= newPosition }.forEach {
             pageDao.update(it.copy(position = it.position + 1))
         }
@@ -270,13 +297,15 @@ class DocumentRepositoryImpl(
 
         val doc = documentDao.getById(page.documentId)
         if (doc != null) {
+            val newRev = doc.revision + 1
             documentDao.update(
                 doc.copy(
                     pageCount = doc.pageCount + 1,
-                    revision = doc.revision + 1,
+                    revision = newRev,
                     updatedAt = System.currentTimeMillis()
                 )
             )
+            createVersionSnapshot(page.documentId, "Duplicate page")
         }
 
         duplicate.toDomain(converters)
@@ -287,7 +316,6 @@ class DocumentRepositoryImpl(
         val docId = page.documentId
         pageDao.deleteById(pageId)
 
-        // Renumber remaining pages
         val remaining = pageDao.getPagesForDocument(docId).sortedBy { it.position }
         remaining.forEachIndexed { index, p ->
             if (p.position != index) {
@@ -297,13 +325,15 @@ class DocumentRepositoryImpl(
 
         val doc = documentDao.getById(docId)
         if (doc != null) {
+            val newRev = doc.revision + 1
             documentDao.update(
                 doc.copy(
                     pageCount = remaining.size,
-                    revision = doc.revision + 1,
+                    revision = newRev,
                     updatedAt = System.currentTimeMillis()
                 )
             )
+            createVersionSnapshot(docId, "Delete page")
         }
     }
 
@@ -329,13 +359,15 @@ class DocumentRepositoryImpl(
 
         val doc = documentDao.getById(documentId)
         if (doc != null) {
+            val newRev = doc.revision + 1
             documentDao.update(
                 doc.copy(
                     pageCount = position + 1,
-                    revision = doc.revision + 1,
+                    revision = newRev,
                     updatedAt = System.currentTimeMillis()
                 )
             )
+            createVersionSnapshot(documentId, "Append page")
         }
 
         page.toDomain(converters)
@@ -350,7 +382,6 @@ class DocumentRepositoryImpl(
         inputStream: InputStream,
         sessionId: String
     ): Int = withContext(Dispatchers.IO) {
-        // Save stream to a temp file for PdfRenderer
         val tempPdf = File.createTempFile("imported_", ".pdf", context.cacheDir)
         try {
             FileOutputStream(tempPdf).use { out ->
@@ -365,7 +396,6 @@ class DocumentRepositoryImpl(
             try {
                 for (i in 0 until renderer.pageCount) {
                     val pdfPage = renderer.openPage(i)
-                    // Render at high resolution (approx 150-200 dpi)
                     val scale = 2.0f
                     val w = (pdfPage.width * scale).toInt()
                     val h = (pdfPage.height * scale).toInt()
@@ -391,6 +421,161 @@ class DocumentRepositoryImpl(
             tempPdf.delete()
         }
     }
+
+    // OCR Implementation (Phase 7 & IMP-08)
+    override suspend fun getOcrResult(pageId: String): PageOcrResult? = withContext(Dispatchers.IO) {
+        ocrDao.getByPageId(pageId)?.toDomain()
+    }
+
+    override fun observeOcrResult(pageId: String): Flow<PageOcrResult?> {
+        return ocrDao.observeByPageId(pageId).map { it?.toDomain() }
+    }
+
+    override suspend fun saveOcrResult(
+        documentId: String,
+        result: PageOcrResult
+    ) = withContext(Dispatchers.IO) {
+        val existing = ocrDao.getByPageId(result.pageId)
+        val entity = OcrResultEntity(
+            pageId = result.pageId,
+            documentId = documentId,
+            sourceRevision = result.sourceRevision,
+            rawText = result.rawText,
+            // Section 28.8: Never overwrite a human correction with a later recognition result!
+            userReviewedText = existing?.userReviewedText ?: result.userReviewedText,
+            blocksJson = serializeBlocks(result.blocks),
+            language = result.language,
+            updatedAt = System.currentTimeMillis()
+        )
+        ocrDao.insert(entity)
+    }
+
+    override suspend fun updateUserReviewedText(
+        pageId: String,
+        reviewedText: String
+    ) = withContext(Dispatchers.IO) {
+        val existing = ocrDao.getByPageId(pageId)
+        if (existing != null) {
+            ocrDao.insert(
+                existing.copy(
+                    userReviewedText = reviewedText,
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
+    override suspend fun getOcrForDocument(documentId: String): Map<String, PageOcrResult> = withContext(Dispatchers.IO) {
+        ocrDao.getForDocument(documentId).associate { it.pageId to it.toDomain() }
+    }
+
+    override fun searchDocumentsByOcr(query: String): Flow<List<OcrResultEntity>> {
+        return ocrDao.search(query)
+    }
+
+    // Version History Implementation (IMP-01)
+    override suspend fun createVersionSnapshot(
+        documentId: String,
+        reason: String
+    ) = withContext(Dispatchers.IO) {
+        val doc = documentDao.getById(documentId) ?: return@withContext
+        val pages = pageDao.getPagesForDocument(documentId)
+
+        val jsonArray = JSONArray()
+        pages.forEach { p ->
+            val obj = JSONObject()
+            obj.put("id", p.id)
+            obj.put("position", p.position)
+            obj.put("sourceAssetId", p.sourceAssetId)
+            obj.put("recipeJson", p.recipeJson)
+            jsonArray.put(obj)
+        }
+
+        val version = DocumentVersionEntity(
+            id = UUID.randomUUID().toString(),
+            documentId = documentId,
+            revision = doc.revision,
+            pageSnapshotJson = jsonArray.toString(),
+            reason = reason,
+            createdAt = System.currentTimeMillis()
+        )
+        versionDao.insert(version)
+    }
+
+    override suspend fun getVersionHistory(documentId: String): List<DocumentVersionEntity> = withContext(Dispatchers.IO) {
+        versionDao.getVersionsForDocument(documentId)
+    }
+
+    private fun serializeBlocks(blocks: List<OcrBlock>): String {
+        val array = JSONArray()
+        blocks.forEach { block ->
+            val bObj = JSONObject()
+            bObj.put("text", block.text)
+            block.boundingBox?.let { box ->
+                bObj.put("box", "${box.left},${box.top},${box.right},${box.bottom}")
+            }
+
+            val linesArray = JSONArray()
+            block.lines.forEach { line ->
+                val lObj = JSONObject()
+                lObj.put("text", line.text)
+                line.boundingBox?.let { box ->
+                    lObj.put("box", "${box.left},${box.top},${box.right},${box.bottom}")
+                }
+                linesArray.put(lObj)
+            }
+            bObj.put("lines", linesArray)
+            array.put(bObj)
+        }
+        return array.toString()
+    }
+
+    private fun deserializeBlocks(jsonStr: String): List<OcrBlock> {
+        if (jsonStr.isBlank()) return emptyList()
+        return try {
+            val array = JSONArray(jsonStr)
+            val blocks = mutableListOf<OcrBlock>()
+            for (i in 0 until array.length()) {
+                val bObj = array.getJSONObject(i)
+                val text = bObj.optString("text", "")
+                val boxStr = if (bObj.has("box")) bObj.getString("box") else null
+                val box = parseBox(boxStr)
+
+                val linesArray = bObj.optJSONArray("lines")
+                val lines = mutableListOf<OcrLine>()
+                if (linesArray != null) {
+                    for (j in 0 until linesArray.length()) {
+                        val lObj = linesArray.getJSONObject(j)
+                        val lText = lObj.optString("text", "")
+                        val lBox = parseBox(if (lObj.has("box")) lObj.getString("box") else null)
+                        lines.add(OcrLine(text = lText, boundingBox = lBox))
+                    }
+                }
+                blocks.add(OcrBlock(text = text, boundingBox = box, lines = lines))
+            }
+            blocks
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun parseBox(boxStr: String?): NormalizedRect? {
+        if (boxStr.isNullOrBlank()) return null
+        val parts = boxStr.split(",").mapNotNull { it.toFloatOrNull() }
+        return if (parts.size == 4) {
+            NormalizedRect(parts[0], parts[1], parts[2], parts[3])
+        } else null
+    }
+
+    private fun OcrResultEntity.toDomain() = PageOcrResult(
+        pageId = pageId,
+        sourceRevision = sourceRevision,
+        rawText = rawText,
+        userReviewedText = userReviewedText,
+        blocks = deserializeBlocks(blocksJson),
+        language = language,
+        updatedAt = updatedAt
+    )
 }
 
 private fun DocumentEntity.toDomain() = Document(
