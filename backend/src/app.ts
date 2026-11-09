@@ -7,6 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { DatabaseSync } from 'node:sqlite';
 import { createDatabase } from './db.js';
+import { processQueuedConversions } from './workers/conversionWorker.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,6 +15,7 @@ const __dirname = path.dirname(__filename);
 export interface AppOptions {
     db?: DatabaseSync;
     jwtSecret?: string;
+    storageDir?: string;
 }
 
 export function buildApp(opts: AppOptions = {}): FastifyInstance {
@@ -23,6 +25,7 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
 
     const db = opts.db || createDatabase();
     const jwtSecret = opts.jwtSecret || 'dev-secret-super-secure-key-12345';
+    const storageDir = opts.storageDir || path.resolve(__dirname, '../uploads');
 
     // Global correlation ID middleware
     fastify.addHook('onRequest', async (req, reply) => {
@@ -413,9 +416,12 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
         const now = Date.now();
 
         db.prepare(`
-            INSERT INTO conversion_jobs (id, account_id, input_type, output_type, status, created_at)
-            VALUES (?, ?, ?, ?, 'QUEUED', ?)
-        `).run(jobId, user.accountId, inputType, outputType, now);
+            INSERT INTO conversion_jobs (id, account_id, input_type, output_type, source_url, status, created_at)
+            VALUES (?, ?, ?, ?, ?, 'QUEUED', ?)
+        `).run(jobId, user.accountId, inputType, outputType, sourceUrl || null, now);
+
+        // Process queued jobs in background worker
+        processQueuedConversions(db, storageDir);
 
         return reply.status(202).send({
             jobId,
@@ -435,6 +441,30 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
         }
 
         return job;
+    });
+
+    fastify.get('/v1/conversions/:id/download', { onRequest: [(fastify as any).authenticate] }, async (req, reply) => {
+        const user = (req as any).user;
+        const { id } = req.params as any;
+
+        const job = db.prepare('SELECT * FROM conversion_jobs WHERE id = ? AND account_id = ?').get(id, user.accountId) as any;
+        if (!job) {
+            return reply.status(404).send({ error: 'Conversion job not found' });
+        }
+
+        if (job.status !== 'COMPLETED') {
+            return reply.status(400).send({ error: `Conversion is not completed (current status: ${job.status})` });
+        }
+
+        const filePath = path.join(storageDir, 'conversions', `${job.id}.pdf`);
+        if (!fs.existsSync(filePath)) {
+            return reply.status(404).send({ error: 'Converted file not found on server' });
+        }
+
+        const fileStream = fs.createReadStream(filePath);
+        reply.header('Content-Type', 'application/pdf');
+        reply.header('Content-Disposition', `attachment; filename="converted_${job.id}.pdf"`);
+        return reply.send(fileStream);
     });
 
     // ==========================================

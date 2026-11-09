@@ -49,7 +49,7 @@ class MainActivity : FragmentActivity() {
         val app = application as ScannerApplication
 
         setContent {
-            val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory())
+            val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory(applicationContext))
             val settingsUiState by settingsViewModel.uiState.collectAsState()
 
             ScannerTheme(

@@ -31,10 +31,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.doclens.scanner.R
+import com.doclens.scanner.core.billing.SubscriptionPlan
 import com.doclens.scanner.core.designsystem.ScannerCard
 import com.doclens.scanner.core.designsystem.ScannerFilterChip
 import com.doclens.scanner.core.designsystem.ScannerOutlinedButton
+import com.doclens.scanner.core.designsystem.ScannerPrimaryButton
 import com.doclens.scanner.core.designsystem.ScannerTheme
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Restore
 import com.doclens.scanner.core.model.AppTextSize
 import com.doclens.scanner.core.model.ContentNetworkMode
 import com.doclens.scanner.core.model.ThemeMode
@@ -173,6 +177,87 @@ fun SettingsScreen(
                     text = stringResource(R.string.privacy_cloud_enabled),
                     onClick = { viewModel.setContentNetworkMode(ContentNetworkMode.CLOUD_ENABLED) }
                 )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Plan & Entitlements (Phase 14 & IMP-09)
+            Text(
+                text = "Plan & Entitlements",
+                style = ScannerTheme.typography.sectionTitle,
+                color = ScannerTheme.colors.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            ScannerCard(modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = uiState.entitlements.plan.title,
+                            style = ScannerTheme.typography.cardTitle,
+                            color = ScannerTheme.colors.primary
+                        )
+                        Text(
+                            text = uiState.entitlements.plan.priceString,
+                            style = ScannerTheme.typography.buttonLabel,
+                            color = ScannerTheme.colors.onSurfaceVariant
+                        )
+                    }
+
+                    Divider(color = ScannerTheme.colors.borderSubtle, thickness = 1.dp)
+
+                    Text(
+                        text = "• Local Scans, OCR & Export: Unlimited (Always Free)",
+                        style = ScannerTheme.typography.compactBody,
+                        color = ScannerTheme.colors.onSurface
+                    )
+                    Text(
+                        text = "• Cloud Storage: ${uiState.entitlements.cloudStorageLimitBytes / 1_000_000_000} GB included",
+                        style = ScannerTheme.typography.compactBody,
+                        color = ScannerTheme.colors.onSurface
+                    )
+                    Text(
+                        text = "• Cloud Format Conversions: ${uiState.entitlements.serverConversionQuotaPerMonth} / month",
+                        style = ScannerTheme.typography.compactBody,
+                        color = ScannerTheme.colors.onSurface
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "Honest Ownership: Local scanning and exports are never locked or held hostage upon plan change.",
+                        style = ScannerTheme.typography.compactBody,
+                        color = ScannerTheme.colors.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (uiState.entitlements.plan == SubscriptionPlan.FREE) {
+                        ScannerPrimaryButton(
+                            text = "Upgrade to Pro ($4.99/mo)",
+                            onClick = { viewModel.upgradeToPro() },
+                            leadingIcon = Icons.Default.Star,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        ScannerOutlinedButton(
+                            text = "Revert to Free Plan",
+                            onClick = { viewModel.downgradeToFree() },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    ScannerOutlinedButton(
+                        text = "Restore Purchases",
+                        onClick = { viewModel.restorePurchases() },
+                        leadingIcon = Icons.Default.Restore,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(32.dp))

@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS conversion_jobs (
     input_type TEXT NOT NULL,
     output_type TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'QUEUED', -- QUEUED, PROCESSING, COMPLETED, FAILED
+    source_url TEXT,
     error_message TEXT,
     result_url TEXT,
     created_at INTEGER NOT NULL,

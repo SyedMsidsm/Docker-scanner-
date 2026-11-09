@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ڈاک لینز اسکینر</string>
+
+    <!-- Navigation & Core -->
+    <string name="nav_documents">دستاویزات</string>
+    <string name="nav_tools">اوزار</string>
+    <string name="nav_settings">ترتیبات</string>
+    <string name="action_scan">اسکین کریں</string>
+    <string name="action_import">درآمد کریں</string>
+    <string name="action_import_pdf">پی ڈی ایف درآمد کریں</string>
+    <string name="action_import_gallery">تصاویر درآمد کریں</string>
+    <string name="action_search">دستاویز تلاش کریں</string>
+    <string name="action_filter_all">تمام</string>
+    <string name="action_filter_recent">حالیہ</string>
+    <string name="action_filter_not_backed_up">غیر محفوظ شدہ</string>
+
+    <!-- Document Status -->
+    <string name="status_saving">محفوظ ہو رہا ہے…</string>
+    <string name="status_saved_locally">اس فون پر محفوظ ہے</string>
+    <string name="status_not_backed_up">بیک اپ نہیں ہوا</string>
+    <string name="status_backup_pending">تبدیلیاں زیر التواء ہیں</string>
+    <string name="status_backing_up">بیک اپ ہو رہا ہے…</string>
+    <string name="status_backed_up">بیک اپ مکمل</string>
+    <string name="status_backup_failed">بیک اپ ناکام ہوا</string>
+    <string name="status_review_needed">صفحہ %1$d پر نظرثانی درکار ہے</string>
+
+    <!-- Capture & Session -->
+    <string name="capture_shutter">تصویر لیں</string>
+    <string name="capture_pages_count">%1$d صفحات</string>
+    <string name="capture_finish">مکمل کریں اور جائزہ لیں</string>
+    <string name="capture_retake">دوبارہ لیں</string>
+    <string name="capture_flash_on">فلیش آن</string>
+    <string name="capture_flash_off">فلیش آف</string>
+    <string name="capture_auto_boundary">خودکار حد بندی</string>
+    <string name="capture_manual">دستی اسکین</string>
+    <string name="session_recovered_title">غیر محفوظ شدہ سیشن بازیاب ہو گیا</string>
+    <string name="session_recovered_msg">پچھلے سیشن سے آپ کے %1$d اسکین شدہ صفحات محفوظ ہیں۔</string>
+    <string name="session_continue">اسکیننگ جاری رکھیں</string>
+    <string name="session_review">صفحات کا جائزہ لیں</string>
+    <string name="session_discard">سیشن ختم کریں</string>
+
+    <!-- Editor & Enhancement -->
+    <string name="editor_crop">تراشیں اور درست کریں</string>
+    <string name="editor_rotate">90° گھمائیں</string>
+    <string name="editor_filter">فلٹر</string>
+    <string name="filter_original">اصل</string>
+    <string name="filter_color">رنگ دار</string>
+    <string name="filter_grayscale">سفید و سیاہ</string>
+    <string name="filter_bw">صاف سیاہ و سفید</string>
+    <string name="editor_brightness">روشنی</string>
+    <string name="editor_contrast">کونٹراسٹ</string>
+    <string name="editor_apply">تبدیلیاں لاگو کریں</string>
+    <string name="editor_reset">ری سیٹ</string>
+    <string name="editor_undo">واپس</string>
+    <string name="editor_redo">دوبارہ</string>
+
+    <!-- Review & Organization -->
+    <string name="review_title">دستاویز کا جائزہ</string>
+    <string name="review_reorder">ترتیب تبدیل کریں</string>
+    <string name="review_move_up">آگے بڑھائیں</string>
+    <string name="review_move_down">پیچھے کریں</string>
+    <string name="review_delete_page">صفحہ حذف کریں</string>
+    <string name="review_duplicate_page">نقل بنائیں</string>
+    <string name="review_add_page">صفحہ شامل کریں</string>
+    <string name="action_ready_to_submit">جمع کرانے کے لیے تیار</string>
+    <string name="action_export">دستاویز برآمد کریں</string>
+
+    <!-- Export & Share -->
+    <string name="export_format_pdf">پی ڈی ایف دستاویز</string>
+    <string name="export_format_jpg">جے پی جی تصاویر</string>
+    <string name="export_paper_a4">A4</string>
+    <string name="export_paper_letter">US Letter</string>
+    <string name="export_paper_auto">اصل سائز</string>
+    <string name="export_preparing">فائل تیار ہو رہی ہے…</string>
+    <string name="export_success">فائل تیار ہے: %1$s (%2$s)</string>
+    <string name="action_share">اشتراک کریں</string>
+    <string name="action_print">پرنٹ کریں</string>
+    <string name="action_save_to_device">فون میں محفوظ کریں</string>
+
+    <!-- Settings & Appearance -->
+    <string name="settings_appearance">ظاہری شکل</string>
+    <string name="settings_theme">تھیم</string>
+    <string name="theme_dark">ڈارک (تجویز کردہ)</string>
+    <string name="theme_light">لائٹ</string>
+    <string name="theme_system">سسٹم ڈیفالٹ</string>
+    <string name="settings_text_size">فونٹ سائز</string>
+    <string name="text_size_small">چھوٹا</string>
+    <string name="text_size_default">ڈیفالٹ</string>
+    <string name="text_size_large">بڑا</string>
+    <string name="text_size_extra_large">بہت بڑا</string>
+    <string name="settings_privacy">رازداری اور نیٹ ورک</string>
+    <string name="privacy_local_only">صرف مقامی (کوئی اپ لوڈ نہیں)</string>
+    <string name="privacy_ask_before_upload">اپ لوڈ سے پہلے پوچھیں</string>
+    <string name="privacy_cloud_enabled">کلاؤڈ فعال ہے</string>
+    <string name="settings_storage">اسٹوریج اور ڈیٹا</string>
+    <string name="settings_about">ڈاک لینز کے بارے میں</string>
+
+    <!-- Common Actions & Errors -->
+    <string name="action_cancel">منسوخ کریں</string>
+    <string name="action_save">محفوظ کریں</string>
+    <string name="action_delete">حذف کریں</string>
+    <string name="action_rename">نام بدلیں</string>
+    <string name="error_camera_permission">اسکین کرنے کے لیے کیمرے کی اجازت درکار ہے۔</string>
+</resources>

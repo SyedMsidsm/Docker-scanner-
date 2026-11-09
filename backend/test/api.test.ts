@@ -281,7 +281,8 @@ describe('DocLens Cloud API & Sync Test Suite', () => {
         assert.equal(entBody.features.ocrUnlimited, true);
     });
 
-    test('10. Document Conversion Job Queueing (CNV-01..04, Phase 13)', async () => {
+    test('10. Document Conversion Pipeline & SSRF Protection (CNV-01..04, Phase 13)', async () => {
+        // 10a. Valid DOCX to PDF conversion
         const convRes = await app.inject({
             method: 'POST',
             url: '/v1/conversions',
@@ -295,16 +296,51 @@ describe('DocLens Cloud API & Sync Test Suite', () => {
         assert.equal(convRes.statusCode, 202);
         const convBody = JSON.parse(convRes.body);
         assert.ok(convBody.jobId);
-        assert.equal(convBody.status, 'QUEUED');
 
-        // Check Job status
+        // Check Job status transitioned to COMPLETED
         const jobRes = await app.inject({
             method: 'GET',
             url: `/v1/jobs/${convBody.jobId}`,
             headers: { authorization: `Bearer ${aliceToken}` }
         });
         assert.equal(jobRes.statusCode, 200);
-        assert.equal(JSON.parse(jobRes.body).status, 'QUEUED');
+        const jobBody = JSON.parse(jobRes.body);
+        assert.equal(jobBody.status, 'COMPLETED');
+        assert.ok(jobBody.result_url);
+
+        // Download Converted PDF
+        const dlRes = await app.inject({
+            method: 'GET',
+            url: `/v1/conversions/${convBody.jobId}/download`,
+            headers: { authorization: `Bearer ${aliceToken}` }
+        });
+        assert.equal(dlRes.statusCode, 200);
+        assert.equal(dlRes.headers['content-type'], 'application/pdf');
+        assert.ok(dlRes.rawPayload.subarray(0, 5).toString('ascii').startsWith('%PDF-'));
+
+        // 10b. Website Conversion SSRF Protection (reject localhost/private IP)
+        const ssrfRes = await app.inject({
+            method: 'POST',
+            url: '/v1/conversions',
+            headers: { authorization: `Bearer ${aliceToken}` },
+            payload: {
+                inputType: 'WEBSITE',
+                outputType: 'PDF',
+                sourceUrl: 'http://127.0.0.1:8080/internal-secrets'
+            }
+        });
+        assert.equal(ssrfRes.statusCode, 202);
+        const ssrfJobId = JSON.parse(ssrfRes.body).jobId;
+
+        const ssrfJobRes = await app.inject({
+            method: 'GET',
+            url: `/v1/jobs/${ssrfJobId}`,
+            headers: { authorization: `Bearer ${aliceToken}` }
+        });
+        assert.equal(ssrfJobRes.statusCode, 200);
+        const ssrfJobBody = JSON.parse(ssrfJobRes.body);
+        assert.equal(ssrfJobBody.status, 'FAILED');
+        assert.ok(ssrfJobBody.error_message?.includes('blocked'));
     });
 
     test('11. Web Companion Client Access (WEB-01, Phase 12)', async () => {

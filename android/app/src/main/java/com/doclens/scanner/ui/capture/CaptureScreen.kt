@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -70,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.doclens.scanner.R
+import com.doclens.scanner.core.barcode.QrDecoder
 import com.doclens.scanner.core.designsystem.ScannerPrimaryButton
 import com.doclens.scanner.core.designsystem.ScannerTheme
 import com.google.android.gms.common.ConnectionResult
@@ -90,6 +92,8 @@ fun CaptureScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsState()
+    var detectedQrText by remember { mutableStateOf<String?>(null) }
+    var isScanningQr by remember { mutableStateOf(false) }
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -283,6 +287,46 @@ fun CaptureScreen(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
+                // QR Code Reader button (CAP-10)
+                IconButton(
+                    onClick = {
+                        if (isScanningQr) return@IconButton
+                        isScanningQr = true
+                        imageCapture.takePicture(
+                            ContextCompat.getMainExecutor(context),
+                            object : ImageCapture.OnImageCapturedCallback() {
+                                override fun onCaptureSuccess(image: ImageProxy) {
+                                    val bitmap = image.toBitmap()
+                                    image.close()
+                                    val decoded = QrDecoder.decodeBitmap(bitmap)
+                                    isScanningQr = false
+                                    if (decoded != null) {
+                                        detectedQrText = decoded
+                                    } else {
+                                        Toast.makeText(context, "No QR code detected in viewfinder", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+
+                                override fun onError(exception: ImageCaptureException) {
+                                    isScanningQr = false
+                                    Toast.makeText(context, "QR scan error: ${exception.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
+                    },
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(Color(0x88000000))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.QrCodeScanner,
+                        contentDescription = "Scan QR",
+                        tint = if (isScanningQr) Color(0xFFD9AC46) else Color.White
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 // Flash toggle
                 IconButton(
                     onClick = { viewModel.toggleFlash() },
@@ -388,6 +432,14 @@ fun CaptureScreen(
                     Spacer(modifier = Modifier.size(52.dp))
                 }
             }
+        }
+
+        // Decoded QR Result Dialog (CAP-10)
+        detectedQrText?.let { qrContent ->
+            QrResultDialog(
+                qrText = qrContent,
+                onDismiss = { detectedQrText = null }
+            )
         }
     }
 }

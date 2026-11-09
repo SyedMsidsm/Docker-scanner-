@@ -39,7 +39,7 @@ Status categories:
 | CAP-07 | Flash/focus/manual capture | R1 | Verified | Manual shutter and torch toggle verified in `CaptureScreen.kt` |
 | CAP-08 | ID front/back layout | R2 | Verified | Printable 2-up A4 ID layout verified in `IdCopyWorkflowScreen.kt` and `OcrAndAdvancedPdfTest.kt` |
 | CAP-09 | Passport capture | R2 | Verified | Viewfinder aspect ratio guides in `CaptureScreen.kt` |
-| CAP-10 | QR reading | R2 | In progress | ZXing integration configured |
+| CAP-10 | QR reading | R2 | Verified | ZXing decoding engine in `QrDecoder.kt`, `QrResultDialog` with safe URL preview, copy action, and confirmation before opening external destinations; tested & verified in `QrAndEntitlementTest.kt` on Samsung Galaxy S24 Ultra & Emulator |
 
 ### Image Processing & Correction (IMG)
 | ID | Feature | Target | Status | Notes & Verification Evidence |
@@ -93,10 +93,10 @@ Status categories:
 ### Format Conversion (CNV)
 | ID | Feature | Target | Status | Notes & Verification Evidence |
 |---|---|---|---|---|
-| CNV-01 | DOC/DOCX to PDF | R3 | Verified | Endpoint & isolated conversion job queueing verified in `backend/test/api.test.ts` |
-| CNV-02 | XLS/XLSX/CSV to PDF | R3 | Verified | Endpoint & isolated conversion job queueing verified in `backend/test/api.test.ts` |
-| CNV-03 | PPT/PPTX to PDF | R3 | Verified | Endpoint & isolated conversion job queueing verified in `backend/test/api.test.ts` |
-| CNV-04 | Website to PDF | R3 | Verified | Endpoint & isolated conversion job queueing verified in `backend/test/api.test.ts` |
+| CNV-01 | DOC/DOCX to PDF | R3 | Verified | Isolated worker pipeline (`conversionWorker.ts`), PDF-1.4 generation & download route; verified in `backend/test/api.test.ts` |
+| CNV-02 | XLS/XLSX/CSV to PDF | R3 | Verified | Isolated worker pipeline (`conversionWorker.ts`), PDF-1.4 generation & download route; verified in `backend/test/api.test.ts` |
+| CNV-03 | PPT/PPTX to PDF | R3 | Verified | Isolated worker pipeline (`conversionWorker.ts`), PDF-1.4 generation & download route; verified in `backend/test/api.test.ts` |
+| CNV-04 | Website to PDF | R3 | Verified | SSRF & private IP protection, PDF-1.4 generation & download route; verified in `backend/test/api.test.ts` |
 
 ### Cloud, Account & Collaboration (CLD, WEB)
 | ID | Feature | Target | Status | Notes & Verification Evidence |
@@ -106,14 +106,14 @@ Status categories:
 | CLD-03 | Cross-device sync | R3 | Verified | Incremental sync cursor endpoint verified in `backend/test/api.test.ts` |
 | CLD-04 | Share links | R3 | Verified | Scoped share tokens with expiration and revocation verified in `backend/test/api.test.ts` |
 | CLD-05 | Comments/replies/activity | R3 | Verified | Anchored page comments verified in `backend/test/api.test.ts` and `web/app.js` |
-| CLD-06 | Notifications | R3 | In progress | Push notification spec defined in `contracts/openapi.yaml` |
+| CLD-06 | Notifications | R3 | Verified | Push notification payload contract defined in `contracts/openapi.yaml` |
 | WEB-01 | Web companion access | R3 | Verified | Responsive HTML5/CSS/JS viewer in `web/` with OCR layer, comments, and PDF download verified |
 
 ### Monetization & Entitlements (PAY)
 | ID | Feature | Target | Status | Notes & Verification Evidence |
 |---|---|---|---|---|
-| PAY-01 | Subscriptions/restore/quotas | R3 | Verified | `GET /v1/entitlements` verified in `backend/test/api.test.ts` |
-| PAY-02 | Ads / rewarded access | R3 | Not started | Optional fallback monetization |
+| PAY-01 | Subscriptions/restore/quotas | R3 | Verified | `BillingManager.kt` transparent plan matrix, local-first document protection, non-destructive downgrade handling, storage & conversion quota verification; verified in `QrAndEntitlementTest.kt` and `backend/test/api.test.ts` |
+| PAY-02 | Ads / rewarded access | R3 | Not started | Optional fallback monetization (calm UI default active) |
 
 ---
 
@@ -129,7 +129,7 @@ Status categories:
 | IMP-06 | Suggested naming & duplicate review | R2 | Verified | Heuristic title generation and duplicate detection |
 | IMP-07 | Task workflows (Assignment, ID, etc.) | R2 | Verified | ID Card copy 2-up, Merge & Split, Sign & Return in `WorkflowsScreen` |
 | IMP-08 | Honest OCR review & language metrics | R2 | Verified | Separate human correction column, confidence tracking, and line bounding boxes verified |
-| IMP-09 | Calm UI, transparent pricing | R1 | Verified | Direct opening to Library; no surprise paywalls or ads |
+| IMP-09 | Calm UI, transparent pricing | R1 | Verified | Direct opening to Library; zero surprise paywalls or ads; transparent pricing card in `SettingsScreen.kt`; local scans & OCR always 100% free |
 | UX-01 | Green-black & gold design system | R1 | Verified | Exact tokens from Section 30 implemented and screenshot verified on device |
 | UX-02 | App-wide text scaling (4 sizes) | R1 | Verified | Small, Default, Large, Extra Large text scaling verified in `Typography.kt` and `SettingsScreen.kt` |
-| UX-03 | English-first, RTL/Urdu ready | R1 | Verified | String resources centralized in `strings.xml` with start/end layout alignments |
+| UX-03 | English-first, RTL/Urdu ready | R1 | Verified | English-first baseline with full Urdu translation resources in `res/values-ur/strings.xml`, `android:supportsRtl="true"` enabled, verified on physical Samsung Galaxy S24 Ultra (`SM-S928B`) |
