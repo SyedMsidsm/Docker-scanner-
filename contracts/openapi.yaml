@@ -1,0 +1,386 @@
+openapi: 3.1.0
+info:
+  title: DocLens Scanner Cloud & Collaboration API
+  version: 1.0.0
+  description: >
+    Authenticated API supporting incremental revision synchronization,
+    secure upload sessions, isolated server conversions, and scoped document sharing.
+paths:
+  /v1/uploads:
+    post:
+      summary: Authorize and create an upload session
+      operationId: createUploadSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [byteSize, checksum, mediaType]
+              properties:
+                byteSize:
+                  type: integer
+                checksum:
+                  type: string
+                mediaType:
+                  type: string
+      responses:
+        '201':
+          description: Upload session created with signed URL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [uploadId, uploadUrl, expiresAt]
+                properties:
+                  uploadId:
+                    type: string
+                  uploadUrl:
+                    type: string
+                  expiresAt:
+                    type: string
+                    format: date-time
+
+  /v1/uploads/{id}/complete:
+    post:
+      summary: Validate and finalize an uploaded asset
+      operationId: completeUploadSession
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Asset verified and committed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [assetId, checksum, byteSize]
+                properties:
+                  assetId:
+                    type: string
+                  checksum:
+                    type: string
+                  byteSize:
+                    type: integer
+
+  /v1/documents:
+    post:
+      summary: Create or import document with idempotency key
+      operationId: createDocument
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, pages]
+              properties:
+                title:
+                  type: string
+                folderId:
+                  type: string
+                pages:
+                  type: array
+                  items:
+                    type: object
+                    required: [assetId, position]
+                    properties:
+                      assetId:
+                        type: string
+                      position:
+                        type: integer
+                      recipeJson:
+                        type: string
+      responses:
+        '201':
+          description: Document created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDto'
+
+  /v1/documents/{id}:
+    get:
+      summary: Retrieve authorized metadata and revision
+      operationId: getDocument
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDto'
+    patch:
+      summary: Apply edit against expected base revision
+      operationId: updateDocument
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [baseRevision]
+              properties:
+                baseRevision:
+                  type: integer
+                title:
+                  type: string
+                folderId:
+                  type: string
+                pages:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: Edit accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDto'
+    delete:
+      summary: Create deletion or tombstone operation
+      operationId: deleteDocument
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Document marked deleted
+
+  /v1/changes:
+    get:
+      summary: Incremental synchronization cursor
+      operationId: getChanges
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of incremental mutations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [changes, nextCursor]
+                properties:
+                  changes:
+                    type: array
+                    items:
+                      type: object
+                  nextCursor:
+                    type: string
+
+  /v1/conversions:
+    post:
+      summary: Submit isolated conversion job
+      operationId: submitConversionJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [inputAssetId, targetFormat]
+              properties:
+                inputAssetId:
+                  type: string
+                targetFormat:
+                  type: string
+                  enum: [PDF, DOCX]
+      responses:
+        '202':
+          description: Conversion job accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [jobId, status]
+                properties:
+                  jobId:
+                    type: string
+                  status:
+                    type: string
+
+  /v1/jobs/{id}:
+    get:
+      summary: Read job status and authorized result
+      operationId: getJobStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job status report
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [jobId, status]
+                properties:
+                  jobId:
+                    type: string
+                  status:
+                    type: string
+                  outputAssetId:
+                    type: string
+                  error:
+                    type: string
+
+  /v1/documents/{id}/shares:
+    post:
+      summary: Create scoped share link
+      operationId: createShareLink
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [VIEWER, COMMENTER, EDITOR]
+                expiresAt:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Scoped share created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [shareId, shareUrl, role]
+                properties:
+                  shareId:
+                    type: string
+                  shareUrl:
+                    type: string
+                  role:
+                    type: string
+
+  /v1/shares/{id}:
+    delete:
+      summary: Revoke share link
+      operationId: revokeShareLink
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Share revoked
+
+  /v1/documents/{id}/comments:
+    post:
+      summary: Add authorized anchored comment
+      operationId: addComment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pageId, text]
+              properties:
+                pageId:
+                  type: string
+                text:
+                  type: string
+      responses:
+        '201':
+          description: Comment created
+
+  /v1/entitlements:
+    get:
+      summary: Read server-verified feature access
+      operationId: getEntitlements
+      responses:
+        '200':
+          description: Verified entitlements
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tier, active]
+                properties:
+                  tier:
+                    type: string
+                  active:
+                    type: boolean
+
+  /v1/account/deletion:
+    post:
+      summary: Begin account deletion workflow
+      operationId: deleteAccount
+      responses:
+        '202':
+          description: Account deletion scheduled
+
+components:
+  schemas:
+    DocumentDto:
+      type: object
+      required: [id, title, revision, pageCount, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        folderId:
+          type: string
+        revision:
+          type: integer
+        pageCount:
+          type: integer
+        createdAt:
+          type: integer
+        updatedAt:
+          type: integer
