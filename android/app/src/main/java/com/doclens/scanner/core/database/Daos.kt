@@ -156,3 +156,19 @@ interface DocumentVersionDao {
     @Query("SELECT * FROM document_versions WHERE documentId = :documentId AND revision = :revision")
     suspend fun getVersion(documentId: String, revision: Int): DocumentVersionEntity?
 }
+
+@Dao
+interface OutboxDao {
+
+    @Query("SELECT * FROM outbox_operations WHERE status = 'PENDING' ORDER BY createdAt ASC")
+    suspend fun getPendingOperations(): List<OutboxOperationEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(operation: OutboxOperationEntity)
+
+    @Update
+    suspend fun update(operation: OutboxOperationEntity)
+
+    @Query("DELETE FROM outbox_operations WHERE id = :id")
+    suspend fun delete(id: String)
+}

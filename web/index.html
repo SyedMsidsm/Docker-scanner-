@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DocLens Web Companion</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="brand-badge">DOCLENS</span>
+      <h1 class="doc-title" id="docTitle">Loading Document…</h1>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" id="copyShareBtn">🔗 Copy Share Link</button>
+      <button class="btn btn-primary" id="downloadPdfBtn">📥 Download PDF</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="canvas-area">
+      <div class="page-wrapper" id="pageContainer">
+        <!-- Rendered Page Image -->
+        <img id="pageImage" class="page-image" src="" alt="Scan Page Preview" style="display: none;">
+        <div id="pagePlaceholder" style="padding: 40px; text-align: center; color: #111411;">
+          <h2 id="placeholderText">DocLens Scanned Document</h2>
+          <p id="placeholderSub">Page 1</p>
+        </div>
+      </div>
+
+      <div class="controls-overlay">
+        <button class="btn btn-outline" id="prevPageBtn">◀ Prev</button>
+        <span class="page-indicator" id="pageIndicator">Page 1 of 1</span>
+        <button class="btn btn-outline" id="nextPageBtn">Next ▶</button>
+      </div>
+    </div>
+
+    <aside class="sidebar">
+      <nav class="tabs">
+        <button class="tab active" data-tab="comments">Comments</button>
+        <button class="tab" data-tab="ocr">OCR Text</button>
+        <button class="tab" data-tab="info">Document Info</button>
+      </nav>
+
+      <div class="tab-content active" id="tabComments">
+        <div id="commentsList">
+          <p style="color: var(--text-muted); font-size: 13px;">No comments on this page yet.</p>
+        </div>
+
+        <form class="comment-form" id="commentForm">
+          <input type="text" class="input-field" id="authorInput" placeholder="Your name" required />
+          <textarea class="input-field" id="commentInput" rows="3" placeholder="Add an anchored note on this page…" required></textarea>
+          <button type="submit" class="btn btn-primary">Post Comment</button>
+        </form>
+      </div>
+
+      <div class="tab-content" id="tabOcr">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+          <span style="font-size: 12px; color: var(--text-muted);">Extracted text via ML Kit</span>
+          <button class="btn btn-outline" id="copyOcrBtn" style="padding: 4px 8px; font-size: 12px;">Copy All</button>
+        </div>
+        <div class="ocr-box" id="ocrContent">Sample extracted document text layer will be displayed here.</div>
+      </div>
+
+      <div class="tab-content" id="tabInfo">
+        <div style="font-size: 14px; line-height: 1.8;">
+          <p><strong>Document ID:</strong> <span id="infoDocId">-</span></p>
+          <p><strong>Total Pages:</strong> <span id="infoPageCount">1</span></p>
+          <p><strong>Access Role:</strong> <span id="infoRole">VIEWER</span></p>
+          <p><strong>Security:</strong> AES-128 / SHA-256 Verified</p>
+          <p><strong>Storage:</strong> Local-first with Encrypted Cloud Sync</p>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -150,3 +150,19 @@ data class DocumentVersionEntity(
     val reason: String,
     val createdAt: Long
 )
+
+@Entity(
+    tableName = "outbox_operations",
+    indices = [Index(value = ["status"]), Index(value = ["documentId"])]
+)
+data class OutboxOperationEntity(
+    @PrimaryKey val id: String,
+    val documentId: String,
+    val operationType: String, // CREATE, UPDATE, DELETE
+    val baseRevision: Int,
+    val payloadJson: String,
+    val status: String, // PENDING, IN_FLIGHT, COMPLETED, FAILED
+    val createdAt: Long,
+    val attemptCount: Int = 0,
+    val lastError: String? = null
+)

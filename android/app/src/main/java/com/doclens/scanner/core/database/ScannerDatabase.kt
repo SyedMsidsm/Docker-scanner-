@@ -16,9 +16,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         CaptureSessionEntity::class,
         SessionPageEntity::class,
         OcrResultEntity::class,
-        DocumentVersionEntity::class
+        DocumentVersionEntity::class,
+        OutboxOperationEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -30,6 +31,7 @@ abstract class ScannerDatabase : RoomDatabase() {
     abstract fun captureSessionDao(): CaptureSessionDao
     abstract fun ocrDao(): OcrDao
     abstract fun documentVersionDao(): DocumentVersionDao
+    abstract fun outboxDao(): OutboxDao
 
     companion object {
         private const val DB_NAME = "scanner_documents.db"
@@ -76,6 +78,27 @@ abstract class ScannerDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `outbox_operations` (
+                        `id` TEXT NOT NULL,
+                        `documentId` TEXT NOT NULL,
+                        `operationType` TEXT NOT NULL,
+                        `baseRevision` INTEGER NOT NULL,
+                        `payloadJson` TEXT NOT NULL,
+                        `status` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `attemptCount` INTEGER NOT NULL DEFAULT 0,
+                        `lastError` TEXT,
+                        PRIMARY KEY(`id`)
+                    )
+                """)
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_outbox_operations_status` ON `outbox_operations` (`status`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_outbox_operations_documentId` ON `outbox_operations` (`documentId`)")
+            }
+        }
+
         @Volatile
         private var instance: ScannerDatabase? = null
 
@@ -86,7 +109,7 @@ abstract class ScannerDatabase : RoomDatabase() {
                     ScannerDatabase::class.java,
                     DB_NAME
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build().also { instance = it }
             }
         }

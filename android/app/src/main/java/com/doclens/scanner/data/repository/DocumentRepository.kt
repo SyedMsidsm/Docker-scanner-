@@ -15,6 +15,8 @@ import com.doclens.scanner.core.database.DocumentVersionDao
 import com.doclens.scanner.core.database.DocumentVersionEntity
 import com.doclens.scanner.core.database.OcrDao
 import com.doclens.scanner.core.database.OcrResultEntity
+import com.doclens.scanner.core.database.OutboxDao
+import com.doclens.scanner.core.database.OutboxOperationEntity
 import com.doclens.scanner.core.database.PageDao
 import com.doclens.scanner.core.database.PageEntity
 import com.doclens.scanner.core.database.SessionPageEntity
@@ -103,7 +105,8 @@ class DocumentRepositoryImpl(
     private val sessionDao: CaptureSessionDao,
     private val ocrDao: OcrDao,
     private val versionDao: DocumentVersionDao,
-    private val assetStore: AssetStore
+    private val assetStore: AssetStore,
+    private val outboxDao: OutboxDao? = null
 ) : DocumentRepository {
 
     private val converters = Converters()
@@ -237,6 +240,18 @@ class DocumentRepositoryImpl(
             )
         }
         pageDao.insertAll(pageEntities)
+
+        outboxDao?.insert(
+            OutboxOperationEntity(
+                id = UUID.randomUUID().toString(),
+                documentId = docId,
+                operationType = "CREATE",
+                baseRevision = 1,
+                payloadJson = """{"title":"${document.title}","pageCount":${pageEntities.size}}""",
+                status = "PENDING",
+                createdAt = now
+            )
+        )
 
         sessionDao.deleteSession(sessionId)
 

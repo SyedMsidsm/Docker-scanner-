@@ -48,7 +48,8 @@ class ScannerApplication : Application() {
             sessionDao = database.captureSessionDao(),
             ocrDao = database.ocrDao(),
             versionDao = database.documentVersionDao(),
-            assetStore = assetStore
+            assetStore = assetStore,
+            outboxDao = database.outboxDao()
         )
 
         // Startup reconciliation for interrupted saves (Section 4.3 rule 9)
